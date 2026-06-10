@@ -187,6 +187,73 @@
     }
 
     .footer a { color: #f59e0b; text-decoration: none; }
+
+    .divider {
+      border: none;
+      border-top: 2px dashed #f0e0a0;
+      margin: 28px 0 24px;
+    }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #6b4f00;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .item-card {
+      background: #fffdf5;
+      border: 2px solid #f0e0a0;
+      border-radius: 14px;
+      padding: 14px 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.1s, box-shadow 0.2s;
+      text-align: left;
+    }
+
+    .item-card:hover {
+      border-color: #f59e0b;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.15);
+      transform: translateY(-1px);
+    }
+
+    .item-card.active {
+      border-color: #f97316;
+      background: linear-gradient(135deg, #fff8e1, #fef3c7);
+    }
+
+    .item-emoji { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+
+    .item-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #3e2700;
+      line-height: 1.3;
+    }
+
+    .item-price {
+      font-size: 0.72rem;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    .item-mangoes {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #b45309;
+      min-height: 1.2em;
+    }
+
+    .item-mangoes.loading { color: #ccc; font-weight: 400; }
   </style>
 </head>
 <body>
@@ -234,6 +301,11 @@
     <div class="mango-strip" id="resultEmojis"></div>
   </div>
 
+  <hr class="divider" />
+
+  <div class="section-title">🏷️ How many mangoes to buy…?</div>
+  <div class="items-grid" id="itemsGrid"></div>
+
   <div class="footer">
     Mango prices via <a href="https://data.gov.in" target="_blank">data.gov.in</a> (Agmarknet) ·
     Exchange rates via <a href="https://open.er-api.com" target="_blank">ExchangeRate-API</a>
@@ -241,8 +313,20 @@
 </div>
 
 <script>
+  const ITEMS = [
+    { emoji: '🏎️', name: 'Ferrari SF90 Stradale', priceUSD: 530000 },
+    { emoji: '🏠', name: 'Avg. house in Milan',   priceUSD: 540000 },
+    { emoji: '📱', name: 'iPhone 16 Pro Max',      priceUSD: 1199   },
+    { emoji: '💍', name: 'Diamond ring (1 ct)',    priceUSD: 10000  },
+    { emoji: '✈️', name: 'Business Rome → Tokyo',  priceUSD: 4000   },
+    { emoji: '🎸', name: 'Gibson Les Paul',         priceUSD: 2499   },
+    { emoji: '🍔', name: 'Big Mac',                 priceUSD: 5.58  },
+    { emoji: '☕', name: 'Espresso in Rome',        priceUSD: 1.50  },
+  ];
+
   let mangoPrice = null;
   let mangoSource = '';
+  let usdToInr    = null;
 
   async function fetchMangoPrice() {
     const FALLBACK = 100;
@@ -269,18 +353,62 @@
     return { price: FALLBACK, source: 'estimated (API unavailable)', fallback: true };
   }
 
+  function renderItems(rate) {
+    const grid = document.getElementById('itemsGrid');
+    grid.innerHTML = '';
+    ITEMS.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.dataset.index = i;
+
+      const mangoes = rate && mangoPrice
+        ? Math.floor((item.priceUSD * rate / mangoPrice) / 0.25)
+        : null;
+      const mangoText = mangoes !== null
+        ? `🥭 ${mangoes.toLocaleString()} mangoes`
+        : '<span class="loading">calculating…</span>';
+
+      card.innerHTML = `
+        <span class="item-emoji">${item.emoji}</span>
+        <div class="item-name">${item.name}</div>
+        <div class="item-price">$${item.priceUSD.toLocaleString()}</div>
+        <div class="item-mangoes">${mangoText}</div>
+      `;
+
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.item-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        document.getElementById('amount').value = item.priceUSD;
+        document.getElementById('currency').value = 'USD';
+        convert();
+        document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
   async function init() {
-    const result = await fetchMangoPrice();
-    mangoPrice  = result.price;
-    mangoSource = result.source;
+    renderItems(null); // show cards immediately with "calculating…"
+
+    const [mangoResult, rateRes] = await Promise.all([
+      fetchMangoPrice(),
+      fetch('https://open.er-api.com/v6/latest/USD').then(r => r.json()).catch(() => null),
+    ]);
+
+    mangoPrice  = mangoResult.price;
+    mangoSource = mangoResult.source;
+    usdToInr    = rateRes?.rates?.INR ?? null;
 
     document.getElementById('priceValue').textContent = `₹${mangoPrice}/kg`;
-    document.getElementById('priceLabel').textContent  = result.source;
-    document.getElementById('priceLabel').style.color  = result.fallback ? '#f59e0b' : '#16a34a';
+    document.getElementById('priceLabel').textContent  = mangoResult.source;
+    document.getElementById('priceLabel').style.color  = mangoResult.fallback ? '#f59e0b' : '#16a34a';
 
     const btn = document.getElementById('convertBtn');
     btn.disabled    = false;
     btn.textContent = 'Calculate 🥭';
+
+    renderItems(usdToInr);
   }
 
   async function convert() {
