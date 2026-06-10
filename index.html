@@ -254,6 +254,32 @@
     }
 
     .item-mangoes.loading { color: #ccc; font-weight: 400; }
+
+    .items-details { margin-bottom: 4px; }
+
+    .items-details > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0;
+      padding: 6px 0;
+    }
+
+    .items-details > summary::-webkit-details-marker { display: none; }
+
+    .chevron {
+      font-size: 0.9rem;
+      color: #b8975a;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+
+    .items-details[open] .chevron { transform: rotate(180deg); }
+
+    .items-details[open] > summary { margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -303,8 +329,10 @@
 
   <hr class="divider" />
 
-  <div class="section-title">🏷️ How many mangoes to buy…?</div>
-  <div class="items-grid" id="itemsGrid"></div>
+  <details class="items-details">
+    <summary class="section-title">🏷️ How many mangoes to buy…? <span class="chevron">▾</span></summary>
+    <div class="items-grid" id="itemsGrid"></div>
+  </details>
 
   <div class="footer">
     Mango prices via <a href="https://data.gov.in" target="_blank">data.gov.in</a> (Agmarknet) ·
